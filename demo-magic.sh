@@ -5,6 +5,7 @@
 # demo-magic.sh
 #
 # Copyright (c) 2015 Paxton Hare
+# Additional code copyright (c) 2020 Joe Thompson
 #
 # This script lets you script demos in bash. It runs through your demo script 
 # when you press ENTER. It simulates typing and runs commands.
