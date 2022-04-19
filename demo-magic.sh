@@ -4,8 +4,8 @@
 #
 # demo-magic.sh
 #
-# Copyright (c) 2015 Paxton Hare
-# Additional code copyright (c) 2020,2021 Joe Thompson
+# Copyright (c) 2015-2020 Paxton Hare
+# Additional code copyright (c) 2020-2022 Joe Thompson
 #
 # This script lets you script demos in bash. It runs through your demo script 
 # when you press ENTER. It simulates typing and runs commands.
@@ -58,7 +58,7 @@ function magic_prompt() {
   x=$(PS1="$DEMO_PROMPT" "$BASH" --norc -i </dev/null 2>&1 | sed -n '${s/^\(.*\)exit$/\1/p;}')
 
   # show command number is selected
-  if $SHOW_CMD_NUMS; then
+  if [[ "$SHOW_CMD_NUMS" == "true" ]]; then
    printf "[$((++C_NUM))] '%s'" "$x"
   else
    printf '%s' "$x"
@@ -105,7 +105,9 @@ function wait() {
 ##
 
 function start_demo() {
-  clear
+  if [[ "$INIT_CLEAR" == "true" ]]; then
+    clear
+  fi
   magic_prompt
 }
 
@@ -129,7 +131,7 @@ function magic_print() {
   fi
 
   # wait for the user to press a key before typing the command
-  if ! $NO_WAIT && [[ "$WAIT_AT" =~ "both"|"before" ]]; then
+  if [[ "$NO_WAIT" == "false" ]] && [[ "$WAIT_AT" =~ "both"|"before" ]]; then
     wait
   fi
 
@@ -140,7 +142,7 @@ function magic_print() {
   fi
 
   # wait for the user to press a key before moving on
-  if ! $NO_WAIT && [[ "$WAIT_AT" =~ "both"|"after" ]]; then
+  if [[ "$NO_WAIT" == "false" ]] && [[ "$WAIT_AT" =~ "both"|"after" ]]; then
     wait
   fi
   echo ""
@@ -150,7 +152,15 @@ function magic_print() {
 # execute the command supplied for pe
 ##
 function magic_exec() {
+  function handle_cancel() {
+    printf ""
+  }
+
+  trap handle_cancel SIGINT
+  stty -echoctl
   eval "$@"
+  stty echoctl
+  trap - SIGINT
 }
 
 ##
@@ -215,7 +225,7 @@ function cmd() {
   x=$(PS1="$DEMO_PROMPT" "$BASH" --norc -i </dev/null 2>&1 | sed -n '${s/^\(.*\)exit$/\1/p;}')
   printf "%s\033[0m" "$x"
   read command
-  eval "${command}"
+  magic_exec "${command}"
 }
 
 
