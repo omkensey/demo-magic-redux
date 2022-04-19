@@ -125,9 +125,9 @@ function end_demo() {
 function magic_print() {
 
   if [[ ${1:0:1} == "#" ]]; then
-    cmd=$DEMO_COMMENT_COLOR$1$COLOR_RESET
+    cmd=$DEMO_COMMENT_COLOR"$@"$COLOR_RESET
   else
-    cmd=$DEMO_CMD_COLOR$1$COLOR_RESET
+    cmd=$DEMO_CMD_COLOR"$@"$COLOR_RESET
   fi
 
   # wait for the user to press a key before typing the command
@@ -149,7 +149,7 @@ function magic_print() {
 }
 
 ##
-# execute the command supplied for pe
+# execute the command supplied for pe; handle Ctrl-C during command execution
 ##
 function magic_exec() {
   function handle_cancel() {
