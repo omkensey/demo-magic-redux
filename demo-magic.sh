@@ -4,8 +4,8 @@
 #
 # demo-magic.sh
 #
-# Copyright (c) 2015 Paxton Hare
-# Additional code copyright (c) 2020 Joe Thompson
+# Copyright (c) 2015-2020 Paxton Hare
+# Additional code copyright (c) 2020-2022 Joe Thompson
 #
 # This script lets you script demos in bash. It runs through your demo script 
 # when you press ENTER. It simulates typing and runs commands.
@@ -13,20 +13,22 @@
 ###############################################################################
 
 # the speed to "type" the text
-TYPE_SPEED=20
+TYPE_SPEED=${DEMO_TYPE_SPEED:-20}
 
 # no wait after "p" or "pe"
-NO_WAIT=false
+NO_WAIT=${DEMO_NO_WAIT:-false}
 
 # wait only "before" typing, only "after" typing, or "both" before and after
-WAIT_AT="before"
+WAIT_AT=${DEMO_WAIT_AT:-"before"}
 
 # if > 0, will pause for this amount of seconds before automatically proceeding with any p or pe
-PROMPT_TIMEOUT=0
+PROMPT_TIMEOUT=${DEMO_PROMPT_TIMEOUT:-0}
 
 # don't show command number unless user specifies it
-SHOW_CMD_NUMS=false
+SHOW_CMD_NUMS=${DEMO_SHOW_CMD_NUMS:-false}
 
+# clear the screen by default when the demo starts
+INIT_CLEAR=${DEMO_INIT_CLEAR:-"true"}
 
 # handy color vars for pretty prompts
 BLACK="\033[0;30m"
@@ -40,6 +42,7 @@ BROWN="\033[0;33m"
 WHITE="\033[1;37m"
 COLOR_RESET="\033[0m"
 
+# initialize command numbering
 C_NUM=0
 
 # prompt and command color which can be overriden
@@ -55,7 +58,7 @@ function magic_prompt() {
   x=$(PS1="$DEMO_PROMPT" "$BASH" --norc -i </dev/null 2>&1 | sed -n '${s/^\(.*\)exit$/\1/p;}')
 
   # show command number is selected
-  if $SHOW_CMD_NUMS; then
+  if [[ "$SHOW_CMD_NUMS" == "true" ]]; then
    printf "[$((++C_NUM))] '%s'" "$x"
   else
    printf '%s' "$x"
@@ -72,7 +75,8 @@ function usage() {
   echo -e "\tWhere options is one or more of:"
   echo -e "\t-h\tPrints Help text"
   echo -e "\t-a\tWhether to wait before or after simulated typing for user "
-  echo -e "\t\tto hit enter (before, after, both)"
+  echo -e "\t\tto hit enter (before, after, both; default: before)"
+  echo -e "\t-c\tWhether to print command numbers (default: false)"
   echo -e "\t-d\tDebug mode. Disables simulated typing"
   echo -e "\t-n\tNo wait"
   echo -e "\t-s\tTyping speed (default: 20)"
@@ -101,7 +105,9 @@ function wait() {
 ##
 
 function start_demo() {
-  clear
+  if [[ "$INIT_CLEAR" == "true" ]]; then
+    clear
+  fi
   magic_prompt
 }
 
@@ -119,13 +125,13 @@ function end_demo() {
 function magic_print() {
 
   if [[ ${1:0:1} == "#" ]]; then
-    cmd=$DEMO_COMMENT_COLOR$1$COLOR_RESET
+    cmd=$DEMO_COMMENT_COLOR"$@"$COLOR_RESET
   else
-    cmd=$DEMO_CMD_COLOR$1$COLOR_RESET
+    cmd=$DEMO_CMD_COLOR"$@"$COLOR_RESET
   fi
 
   # wait for the user to press a key before typing the command
-  if ! $NO_WAIT && [[ "$WAIT_AT" =~ "both"|"before" ]]; then
+  if [[ "$NO_WAIT" == "false" ]] && [[ "$WAIT_AT" =~ "both"|"before" ]]; then
     wait
   fi
 
@@ -136,17 +142,25 @@ function magic_print() {
   fi
 
   # wait for the user to press a key before moving on
-  if ! $NO_WAIT && [[ "$WAIT_AT" =~ "both"|"after" ]]; then
+  if [[ "$NO_WAIT" == "false" ]] && [[ "$WAIT_AT" =~ "both"|"after" ]]; then
     wait
   fi
   echo ""
 }
 
 ##
-# execute the command supplied for pe
+# execute the command supplied for pe; handle Ctrl-C during command execution
 ##
 function magic_exec() {
+  function handle_cancel() {
+    printf ""
+  }
+
+  trap handle_cancel SIGINT
+  stty -echoctl
   eval "$@"
+  stty echoctl
+  trap - SIGINT
 }
 
 ##
@@ -211,7 +225,7 @@ function cmd() {
   x=$(PS1="$DEMO_PROMPT" "$BASH" --norc -i </dev/null 2>&1 | sed -n '${s/^\(.*\)exit$/\1/p;}')
   printf "%s\033[0m" "$x"
   read command
-  eval "${command}"
+  magic_exec "${command}"
 }
 
 
